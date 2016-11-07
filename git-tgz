@@ -1,0 +1,46 @@
+#!/bin/bash
+
+set -e
+set -u
+
+revision=HEAD
+# TODO args: revision
+
+
+toplevel=$( git-rev-parse --show-toplevel )
+parent=$( dirname "${toplevel}" )
+archive_name=$( basename "${toplevel}" )
+# TODO args: override archive_name
+prefix=${archive_name}/
+# TODO args: override prefix
+
+revision_short=$( git-rev-parse --short "${revision}" )
+revision_long=$( git-describe --long --tags --always )
+
+timestamp_format='format-local:%Y%m%d%H%M%S'
+# TODO args: override timestamp_format
+
+if [ "${revision_short}" = "${revision_long}" ] ; then
+  # No useful tags, so use branch instead
+  revision_abbrev=$( git-rev-parse --abbrev-ref "${revision}" )
+  timestamp=$( TZ=UTC git-show --no-patch "--date=${timestamp_format}" --format=%cd "${revision}" )
+  revision_for_filename=${revision_abbrev}-t${timestamp}-g${revision_short}
+else
+  revision_for_filename=${revision_long}
+fi
+
+archive_format=tgz
+# TODO args: override archive_format
+
+out_file=${parent}/${archive_name}---${revision_for_filename////\~}.${archive_format}
+# TODO args: override out_file
+
+if [ ! -e "${out_file}" ] ; then
+  git-archive \
+    "--prefix=${prefix}" \
+    -o "${out_file}" \
+    "${revision}"
+  printf '%s\n' "${out_file}"
+else
+  printf 1>&2 'Warning: Output file already exists: %q\n' "${out_file}"
+fi
